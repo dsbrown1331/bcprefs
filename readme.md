@@ -6,162 +6,61 @@ Dependencies for the CartPole environment can be installed by installing Open AI
 
 This code repo builds on the [OpenAI Spinning Up gitrepo](https://spinningup.openai.com/en/latest/user/installation.html). First follow the instructions to install:
 
+first clone the repo then
+
 ```
-conda create -n pgbroil python=3.6
-conda activate pgbroil
+cd bcprefs
+conda env create -f environment.yml
+conda activate bcprefs
 pip install -e .
 ```
 
-Also install dm_control suite
+Optional: install dm_control suite
 ```
 
 pip install dm_control dmc2gym
 ```
 
-
-
-
-
-## Running Policy Gradient BROIL:
-
-
-To run BROIL VPG:
-In the spinningup/spinup/algos/pytorch/vpg directory run
-```bash
-python broil_vpg2.py --env (CartPole-v0, PointBot-v0)
+To run RL to train a demonstration (replace env with other env if desired and change number of epochs to control how optimal it is (lower is less optimal))
 ```
-Pass in BROIL arguments using
-```bash
---broil_lambda
---broil_alpha
---risk_metric (cvar,erm)
-```
-(Can also pass in all of the arguments listed in the original spinningup vpg.py code, ie: seed, epochs, env_name, policy_lr, etc)
+python -m spinup.run ppo_pytorch --env CartPole-v0 --epochs 20 --exp_name cartpole20
 
-To run BROIL PPO:
-In the spinningup/spinup/algos/pytorch/ppo directory:
+```
 
-First create a folder (broil_dataX) and 3 subfolders (results, visualizations, PointBot_networks) within the PPO directory. Make sure to rename "broil_dataX" on line 557 so files are saved in the right folder. Then run the following command for a grid_search over PointBot-v0:
-```bash
-chmod +x broil_ppo_grid.sh
-./broil_ppo_grid.sh
+The data gets written to a data folder
+
+You can then generate demos from the trained policy for use in behavioral cloning:
 ```
-To run BROIL PPO on an environment:
-```bash
-python broil_ppo.py --env (CartPole-v0, PointBot-v0, reacher)
+python spinup/algos/pytorch/evaluation/generate_demos.py --load_path data/cartpole20/cartpole20_s0/ --save_path cartpole20
 ```
-Pass in BROIL arguments using
-```bash
---broil_lambda
---broil_alpha
---risk_metric (cvar,erm)
+
+This example loads from the pretrained policy and by default will save 10 demos to a pickle file
+
+You can now run BC on it
+```
+python spinup/algos/pytorch/ppo/bc.py --load_path demonstrations/cartpole20.p --env CartPole-v0
 ```
 
 
-
-Once the above command finishes running, you can plot the cvar and expected value graphs by going into the broil_dataX folder and run:
-
+You can generate data for BC degredation if you train two RL policies using the above and then give paths to the demos from both policies labeled as good and bad demos:
 ```
-python select_data_to_graph.py
+python spinup/experiments/BC_prefs/bad_demo_degredation.py --good_load_path demonstrations/cartpole20.p --bad_load_path demonstrations/cartpole2.p --env CartPole-v0 --save_path results/degredation/
 ```
+here I've used data from a 20 epoch RL algo (near optimal) and a 2 epoch one (bad)
 
-Make sure to create the right folders (line 41) and metric (line 15: 'cvar', 'expected_return') to graph the wanted data.
+This will save to ```results/degradation/cartpole20vscarpole2.p```
 
-
-## Evaluation of pretrained policy
-
-To run evaluation of pretrained policy to get risk and return for plotting pareto frontier:
-
-Pretrain a policy using spinningup then use evaluate_policy.py and give it the save path and the env name and it will run 100 policy evaluations and return the expected return under the posterior the cvar.
-
-Note you need to pass in the max horizon for the MDP to initialize the buffer size. Max horizon should be the max number of steps possible in the environment.
-
+You can then plot using
 ```
-python spinup/algos/pytorch/evaluation/evaluate_policy.py --save_path spinningup/data/installtest/installtest_s0 --env CartPole-v0 --num_rollouts 100 --max_horizon 200
-```
-## Bayesian REX
-
-To generate the Bayesian REX posteriors used in the paper for TrashBot run:
-
-```
-python spinup/algos/pytorch/rex/brex/brex_basic.py --features_dir demonstrations/trashbot_demos --normalize
+python plotting_scripts/degredation/plot_degredation.py
 ```
 
-To generate the Bayesian REX posterior used in the appendix for the reacher environment run:
+You can also try and learn from the good and bad by telling the policy to avoid the bad actions:
 ```
-python spinup/algos/pytorch/rex/brex/brex_basic.py --features_dir demonstrations/reacher_easy_demos --env reacher --normalize
+python spinup/experiments/BC_prefs/good_good_minus_bad_demo_degradation.py --good_load_path demonstrations/cartpole20.p --bad_load_path demonstrations/cartpole2.p --env CartPole-v0 --save_path results/degredation/
 ```
-
-This will also print out the mean and MAP reward. To run a PBRL baseline, take the outputted MAP and put it into the spinup/examples/pytorch/broil_rtg_pg_v2/reacher_reward_utils.py or spinup/examples/pytorch/broil_rtg_pg_v2/pointbot_reward_utils.py (depending on the environment you want to run) and set the self.posterior to an array containing just 1.
-
-## Pointbot Navigation
-
-For the Pointbot Navigation environment:
-Change the reward function posterior by going to spinningup/spinup/examples/pytorch/broil_rtg_pg_v2/pointbot_reward_utils.py and changing the self.penalties and self.posterior attributes. The default attributes are the ones used for the paper.
-
-To recreate figures 2b and 2e go to spinningup/spinup/experiments/grapher.py and change the name_of_grid_search variable to maze_ppo_cvar**. To recreate figure 5 in the appendix change the name_of_grid_search variable to maze_ppo_erm**. Then run 
-```
-python grapher.py
-```
-and check in the respective folder for the trajectory visualization and in maze_ppo_erm**/visualizations or maze_ppo_cvar**/visualizations for the pareto frontier.
+It doesn't really work yet...
 
 
-## Trashbot
-### Demonstrator
-
-To create demonstrations for the TrashBot environment first go to the spinningup/spinup/envs/pointbot_const.py and change the constants to create the trash environment in the paper which is given in the comments. Then run demonstrator.py
-
-```
-python demonstrator.py
-```
-Use mouse clicks to apply x and y force to the bot. If the bot is close enough to the trash another piece of trash will randomly spawn in the environment. The demonstrations will be created in pairs. The first demonstration is the good demo while the second is the bad demo. Then go to the demonstrations folder where there a folder will be created with visualizations of both demonstrations, .txt files with the states and actions, and the pickle files used for the algorithms.
 
 
-### Behavioral Cloning 
-
-To run BC for the TrashBot environment first go to the spinningup/spinup/envs/pointbot_const.py and change the constants to create the trash environment in the paper which is given in the comments. Then add the pkl files of the demos created by demonstrator.py (the demos used in the paper are already inside the demos folder). Then go to the spinningup/spinup/algos/pytorch/ppo directory and run the command:
-```
-python bc.py --env PointBot-v0
-```
-A folder will be created in the working directory which will have example rollouts and average statistics for trash collected and steps in the gray region.
-
-### GAIL
-
-To run GAIL for the TrashBot environment first go to the spinningup/spinup/envs/pointbot_const.py and change the constants to create the trash enviornment in the paper which is given in the comments. Then add the pkl files of the demos created by demonstrator.py (the demos used in the paper are already inside the demos folder). Then go to the spinningup/spinup/algos/pytorch/PyTorch-RL directory and run the command:
-```
-python gail/gail_gym.py --env PointBot-v0
-```
-A folder will be created in the working directory which will have example rollouts, rollouts for each epoch, the reward graph over epochs, and average statistics for trash collected and steps in the gray region.
-
-This code is forked from openai/spinningup:
-
-Welcome to Spinning Up in Deep RL!
-==================================
-
-This is an educational resource produced by OpenAI that makes it easier to learn about deep reinforcement learning (deep RL).
-
-For the unfamiliar: [reinforcement learning](https://en.wikipedia.org/wiki/Reinforcement_learning) (RL) is a machine learning approach for teaching agents how to solve tasks by trial and error. Deep RL refers to the combination of RL with [deep learning](http://ufldl.stanford.edu/tutorial/).
-
-This module contains a variety of helpful resources, including:
-
-- a short [introduction](https://spinningup.openai.com/en/latest/spinningup/rl_intro.html) to RL terminology, kinds of algorithms, and basic theory,
-- an [essay](https://spinningup.openai.com/en/latest/spinningup/spinningup.html) about how to grow into an RL research role,
-- a [curated list](https://spinningup.openai.com/en/latest/spinningup/keypapers.html) of important papers organized by topic,
-- a well-documented [code repo](https://github.com/openai/spinningup) of short, standalone implementations of key algorithms,
-- and a few [exercises](https://spinningup.openai.com/en/latest/spinningup/exercises.html) to serve as warm-ups.
-
-Get started at [spinningup.openai.com](https://spinningup.openai.com)!
-
-
-Citing Spinning Up
-------------------
-
-If you reference or use Spinning Up in your research, please cite:
-
-```
-@article{SpinningUp2018,
-    author = {Achiam, Joshua},
-    title = {{Spinning Up in Deep Reinforcement Learning}},
-    year = {2018}
-}
-```
