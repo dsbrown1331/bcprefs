@@ -47,6 +47,7 @@ class VPGBuffer:
         the whole trajectory to compute advantage estimates with GAE-Lambda,
         as well as compute the rewards-to-go for each state, to use as
         the targets for the value function.
+
         The "last_val" argument should be 0 if the trajectory ended
         because the agent reached a terminal state (died), and otherwise
         should be V(s_T), the value function estimated for the last state.
@@ -84,20 +85,24 @@ class VPGBuffer:
 
 
 
-def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), render=False, seed=0, 
+def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0, 
         steps_per_epoch=4000, epochs=50, gamma=0.99, pi_lr=3e-4,
         vf_lr=1e-3, train_v_iters=80, lam=0.97, max_ep_len=1000,
         logger_kwargs=dict(), save_freq=10):
     """
     Vanilla Policy Gradient 
+
     (with GAE-Lambda for advantage estimation)
+
     Args:
         env_fn : A function which creates a copy of the environment.
             The environment must satisfy the OpenAI Gym API.
+
         actor_critic: The constructor method for a PyTorch Module with a 
             ``step`` method, an ``act`` method, a ``pi`` module, and a ``v`` 
             module. The ``step`` method should accept a batch of observations 
             and return:
+
             ===========  ================  ======================================
             Symbol       Shape             Description
             ===========  ================  ======================================
@@ -108,9 +113,12 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), render=False
             ``logp_a``   (batch,)          | Numpy array of log probs for the
                                            | actions in ``a``.
             ===========  ================  ======================================
+
             The ``act`` method behaves the same as ``step`` but only returns ``a``.
+
             The ``pi`` module's forward call should accept a batch of 
             observations and optionally a batch of actions, and return:
+
             ===========  ================  ======================================
             Symbol       Shape             Description
             ===========  ================  ======================================
@@ -124,8 +132,10 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), render=False
                                            | If actions not given, will contain
                                            | ``None``.
             ===========  ================  ======================================
+
             The ``v`` module's forward call should accept a batch of observations
             and return:
+
             ===========  ================  ======================================
             Symbol       Shape             Description
             ===========  ================  ======================================
@@ -133,24 +143,37 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), render=False
                                            | for the provided observations. (Critical: 
                                            | make sure to flatten this!)
             ===========  ================  ======================================
+
         ac_kwargs (dict): Any kwargs appropriate for the ActorCritic object 
             you provided to VPG.
+
         seed (int): Seed for random number generators.
+
         steps_per_epoch (int): Number of steps of interaction (state-action pairs) 
             for the agent and the environment in each epoch.
+
         epochs (int): Number of epochs of interaction (equivalent to
             number of policy updates) to perform.
+
         gamma (float): Discount factor. (Always between 0 and 1.)
+
         pi_lr (float): Learning rate for policy optimizer.
+
         vf_lr (float): Learning rate for value function optimizer.
+
         train_v_iters (int): Number of gradient descent steps to take on 
             value function per epoch.
+
         lam (float): Lambda for GAE-Lambda. (Always between 0 and 1,
             close to 1.)
+
         max_ep_len (int): Maximum length of trajectory / episode / rollout.
+
         logger_kwargs (dict): Keyword args for EpochLogger.
+
         save_freq (int): How often (in terms of gap between epochs) to save
             the current policy and value function.
+
     """
 
     # Special function to avoid certain slowdowns from PyTorch + MPI combo.
@@ -265,9 +288,6 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), render=False
             terminal = d or timeout
             epoch_ended = t==local_steps_per_epoch-1
 
-            if render:
-                env.render()
-
             if terminal or epoch_ended:
                 if epoch_ended and not(terminal):
                     print('Warning: trajectory cut off by epoch at %d steps.'%ep_len, flush=True)
@@ -313,12 +333,10 @@ if __name__ == '__main__':
     parser.add_argument('--l', type=int, default=2)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--seed', '-s', type=int, default=0)
-    parser.add_argument('--cpu', type=int, default=1)
+    parser.add_argument('--cpu', type=int, default=4)
     parser.add_argument('--steps', type=int, default=4000)
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--exp_name', type=str, default='vpg')
-    parser.add_argument('--render', type=bool, default=False)
-    parser.add_argument('--policy_lr', type=float, default=3e-3, help="learning rate for policy")
     args = parser.parse_args()
 
     mpi_fork(args.cpu)  # run parallel code with mpi
@@ -326,8 +344,7 @@ if __name__ == '__main__':
     from spinup.utils.run_utils import setup_logger_kwargs
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
-    vpg(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic, render=args.render,
+    vpg(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
         seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
-        pi_lr=args.policy_lr,
         logger_kwargs=logger_kwargs)
