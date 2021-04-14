@@ -1,4 +1,4 @@
-# Policy Gradient Bayesian Robust Optimization for Imitation Learning
+# Behavioral Cloning from Preferences
 
 ## Installation
 
