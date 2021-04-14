@@ -4,22 +4,8 @@
 
 Dependencies for the CartPole environment can be installed by installing Open AI Gym. Dependencies for the Reacher environment can be installed by pip installing the modified version of the dm_control package and an Open AI gym wrapper for the package which are both included in the included source. 
 
-This code repo builds on the [OpenAI Spinning Up gitrepo](https://spinningup.openai.com/en/latest/user/installation.html). First follow the instructions to install:
+This code repo builds on the [OpenAI Spinning Up gitrepo](https://spinningup.openai.com/en/latest/user/installation.html). Follow their instructions to install, but replace spinningup with bcprefs
 
-first clone the repo then
-
-```
-cd bcprefs
-conda env create -f environment.yml
-conda activate bcprefs
-pip install -e .
-```
-
-Optional: install dm_control suite
-```
-
-pip install dm_control dmc2gym
-```
 
 To run RL to train a demonstration (replace env with other env if desired and change number of epochs to control how optimal it is (lower is less optimal))
 ```
