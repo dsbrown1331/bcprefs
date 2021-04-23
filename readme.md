@@ -35,7 +35,7 @@ You can generate data for BC degradation if you pre-train two RL policies, gener
 ```
 here I've used data from a 10 epoch RL algo (near optimal) and a 2 epoch one (bad)
 
-This will save to ```results/degradation/cartpol120vscarpole2.p```
+This will save to ```results/degradation/cartpole20vscarpole2.p```
 
 You can then plot using
 ```
